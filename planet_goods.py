@@ -102,6 +102,7 @@ class Optimizer:
 
     def calculate_planet_permutations(self, planet):
         """
+        # ToDo: This doesn't find nearly all combinations, so will be scrapped / rewritten
         Returns variations on how the harvesters could be divided
         Amount of variations depends on the amount of resources:
         One permutation is all harvesters to the most valuable resource.
@@ -132,7 +133,11 @@ class Optimizer:
         planet_distribution = Counter(planet.name for planet in select_planets)
         if any(value > self.characters for value in planet_distribution.values()):
             return 0
-        # If we don't get all the resources we need, we return 0 again
+        # ToDo: If we cannot get all the resources we need as a combination of planet resources, we return 0
+
+        # ToDo: Return the value of the most valuable permutation of the planets
+
+        # If we don't get all the resources we need, we return 0 again # ToDo this check will be obsolete
         select_resources = set()
         for planet in select_planets:
             for resource in planet.resources:
@@ -146,6 +151,7 @@ class Optimizer:
         return -total_value
 
     def optimize_planets(self):
+        # ToDo: Replace static permutations with dynamic during the evaluation
         self.permutations = []
         for planet in self.input_planets.values():
             self.calculate_planet_permutations(planet)
