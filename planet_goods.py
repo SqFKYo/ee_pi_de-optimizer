@@ -45,12 +45,43 @@ class Planet:
         )
 
     @property
+    def main_harvesters(self):
+        for resource in sorted(self.resources, key=attrgetter("value"), reverse=True):
+            return resource.harvesters
+
+    @main_harvesters.setter
+    def main_harvesters(self, main_harvesters):
+        for resource in sorted(self.resources, key=attrgetter("value"), reverse=True):
+            resource.harvesters = main_harvesters
+            return
+
+    @property
     def max_value(self) -> float:
         return max(self.resources, key=attrgetter("value")).value
 
     @property
     def most_valuable(self) -> str:
         return max(self.resources, key=attrgetter("value")).name
+
+    @property
+    def sub_harvesters(self):
+        harvesters = []
+        for i, resource in enumerate(
+            sorted(self.resources, key=attrgetter("value"), reverse=True)
+        ):
+            if i == 0:
+                continue
+            else:
+                harvesters.append(resource.harvesters)
+        return harvesters
+
+    @sub_harvesters.setter
+    def sub_harvesters(self, sub_harvesters):
+        for resource, harvesters in zip(
+            sorted(self.resources, key=attrgetter("value"), reverse=True)[1:],
+            sub_harvesters,
+        ):
+            resource.harvesters = harvesters
 
     @property
     def total_value(self) -> float:
@@ -101,17 +132,9 @@ class Optimizer:
         self.wanted_planets = wanted_planets
         self.wanted_resources = wanted_resources
 
-    def can_fullfill_wants(self, select_planets):
-        """Determines whether the select planets contain all the wanted resources."""
-        select_resources = set()
-        for planet in select_planets:
-            for resource in planet.resources:
-                    select_resources.add(resource.name)
-
-        if self.wanted_resources.issubset(select_resources):
-            return True
-        else:
-            return False
+    def can_fullfill_wants(self, combination):
+        """Checks whether the harvester setup on the different planets fullfills the wants"""
+        # ToDo
 
     def evaluate_yield(self, selections):
         # Round to evens then turn into int indexes
@@ -124,7 +147,7 @@ class Optimizer:
             return 0
 
         # If we cannot get all the resources we need as a combination of planet resources, we return 0
-        if not self.can_fullfill_wants(selected_planets):
+        if not self.theoretically_ok(selected_planets):
             return 0
 
         # Find the combination of the most valuable permutation of the planets
@@ -154,13 +177,15 @@ class Optimizer:
         """
         self.get_planet_permutations(selected_planets)
         combinations = product(self.permutations)
-        valid_combinations = [combination for combination in combinations if self.can_fullfill_wants(combination)]
+        valid_combinations = [
+            combination
+            for combination in combinations
+            if self.can_fullfill_wants(combination)
+        ]
         return max(sum(combination) for combination in valid_combinations)
 
     def get_planet_permutations(self, selected_planets):
         """
-        ToDo: Finds all the valid the planet permutations for each of the selected planets.
-
         Valid permutations contain harvesters only assigned to the resources that are in the want list.
         Only the most valuable resource can have more than one harvester assigned to it. 0-N other resources can have
         harvesters assigned to them.
@@ -173,37 +198,16 @@ class Optimizer:
             planet_permutations = []
             for i, _ in enumerate(planet.resources):
                 main_harvesters = self.harvesters - i
-                other_harvesters = i * '1' + (self.harvesters - i) * '0'
+                other_harvesters = i * "1" + (len(planet.resources) - i - 1) * "0"
                 sub_selections = set(permutations(other_harvesters))
 
                 for harv_selections in sub_selections:
                     new_permute = copy.deepcopy(planet)
-
-                    for j, resource in enumerate(new_permute.resources):
-                        if j == 0:
-                            resource.harvesters = main_harvesters
-                        else:
-                            resource.harvesters = int(harv_selections[j])*1
-                    planet_permutations.append[new_permute]
+                    new_permute.main_harvesters = main_harvesters
+                    new_permute.sub_harvesters = harv_selections
+                    planet_permutations.append(new_permute)
 
             self.permutations.append(planet_permutations)
-
-        """
-        # ToDo: Old code for inspiration
-        for _, i in zip(planet.resources, range(self.harvesters)):
-            new_permute = copy.deepcopy(planet)
-            new_permute.resources = sorted(
-                new_permute.resources, key=attrgetter("value"), reverse=True
-            )
-            new_permute.resources[0].harvesters = self.harvesters - i
-            for j, resource in enumerate(
-                    sorted(new_permute.resources, reverse=True)[: i + 1]
-            ):
-                if j == 0:
-                    continue
-                else:
-                    resource.harvesters = 1
-        """
 
     def optimize_planets(self):
         self.sanitize_planets()
@@ -230,9 +234,27 @@ class Optimizer:
         """Removes the unneeded data from the pool"""
         # Removing the useless resources from each planet
         for planet in self.input_planets:
-            planet.resources = [resource for resource in planet.resources if resource.name in self.wanted_resources]
+            planet.resources = [
+                resource
+                for resource in planet.resources
+                if resource.name in self.wanted_resources
+            ]
         # Removing planets without resources from the pool
-        self.input_planets = [planet for planet in self.input_planets if planet.resources]
+        self.input_planets = [
+            planet for planet in self.input_planets if planet.resources
+        ]
+
+    def theoretically_ok(self, select_planets):
+        """Determines whether the select planets contain all the wanted resources."""
+        select_resources = set()
+        for planet in select_planets:
+            for resource in planet.resources:
+                select_resources.add(resource.name)
+
+        if self.wanted_resources.issubset(select_resources):
+            return True
+        else:
+            return False
 
 
 def read_planets(planet_file):
