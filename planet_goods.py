@@ -96,19 +96,49 @@ class Optimizer:
         self.characters = characters
         self.harvesters = harvesters
         self.input_planets = input_planets
-        self.permutations = None
         self.wanted_planets = wanted_planets
         self.wanted_resources = wanted_resources
 
-    def calculate_planet_permutations(self, planet):
-        """
-        # ToDo: This doesn't find nearly all combinations, so will be scrapped / rewritten
-        Returns variations on how the harvesters could be divided
-        Amount of variations depends on the amount of resources:
-        One permutation is all harvesters to the most valuable resource.
-        Second permutation sets one harvester for the second most valuable resource, third on the third etc. until
-        either all harvesters are used up or all resources have at least one harvester.
-        """
+    def can_fullfill_wants(self, select_planets):
+        """Determines whether the select planets contain all the wanted resources."""
+        select_resources = set()
+        for planet in select_planets:
+            for resource in planet.resources:
+                    select_resources.add(resource.name)
+
+        if self.wanted_resources.issubset(select_resources):
+            return True
+        else:
+            return False
+
+    def evaluate_yield(self, selections):
+        # Round to evens then turn into int indexes
+        selections = np.round(np.array(selections)).astype(int)
+        select_planets = [self.input_planets[selection] for selection in selections]
+
+        # If we have too many selections of the same planet, we return 0
+        planet_distribution = Counter(planet.name for planet in select_planets)
+        if any(value > self.characters for value in planet_distribution.values()):
+            return 0
+
+        # If we cannot get all the resources we need as a combination of planet resources, we return 0
+        if not self.can_fullfill_wants(select_planets):
+            return 0
+
+        # Find the combination of the most valuable permutation of the planets
+        optimal_planets = self.get_optimal_distribution(select_planets)
+
+        total_value = sum(planet.total_value for planet in optimal_planets)
+        print(f"All resources found! Value: {total_value}")
+        print(optimal_planets)
+        # Returns the inversion of total value, since the optimization function searches for the minimum value
+        return -total_value
+
+    def get_optimal_distribution(self, select_planets):
+        """Calculates the most valuable permutation of the select planets that fullfills the wants"""
+        # ToDo copypaste code
+        # DEBUG
+        return select_planets
         for _, i in zip(planet.resources, range(self.harvesters)):
             new_permute = copy.deepcopy(planet)
             new_permute.resources = sorted(
@@ -116,50 +146,18 @@ class Optimizer:
             )
             new_permute.resources[0].harvesters = self.harvesters - i
             for j, resource in enumerate(
-                sorted(new_permute.resources, reverse=True)[: i + 1]
+                    sorted(new_permute.resources, reverse=True)[: i + 1]
             ):
                 if j == 0:
                     continue
                 else:
                     resource.harvesters = 1
-            self.permutations.append(new_permute)
-
-    def evaluate_yield(self, selections):
-        # Round to evens then turn into int indexes
-        selections = np.round(np.array(selections)).astype(int)
-        select_planets = [self.permutations[selection] for selection in selections]
-
-        # If we have too many selections of the same planet permutation, we return 0
-        planet_distribution = Counter(planet.name for planet in select_planets)
-        if any(value > self.characters for value in planet_distribution.values()):
-            return 0
-        # ToDo: If we cannot get all the resources we need as a combination of planet resources, we return 0
-
-        # ToDo: Return the value of the most valuable permutation of the planets
-
-        # If we don't get all the resources we need, we return 0 again # ToDo this check will be obsolete
-        select_resources = set()
-        for planet in select_planets:
-            for resource in planet.resources:
-                if resource.harvesters > 0:
-                    select_resources.add(resource.name)
-        if not self.wanted_resources.issubset(select_resources):
-            return 0
-        total_value = sum(planet.total_value for planet in select_planets)
-        print(f"All resources found! Value: {total_value}")
-        print(select_planets)
-        return -total_value
 
     def optimize_planets(self):
-        # ToDo: Replace static permutations with dynamic during the evaluation
-        self.permutations = []
-        for planet in self.input_planets.values():
-            self.calculate_planet_permutations(planet)
-
         res = differential_evolution(
             func=self.evaluate_yield,
             bounds=[
-                (0, len(self.permutations) - 1) for _ in range(self.wanted_planets)
+                (0, len(self.input_planets) - 1) for _ in range(self.wanted_planets)
             ],
             maxiter=100,
             popsize=len(self.wanted_resources) * 300,
@@ -170,13 +168,14 @@ class Optimizer:
         )
         print(f"Message: {res.message}")
         print(f"Selected planets are:")
-        result_planets = [self.permutations[round(selection)] for selection in res.x]
+        result_planets = [self.input_planets[round(selection)] for selection in res.x]
         for planet in result_planets:
             print(planet)
         print(f"Total value: {sum(planet.total_value for planet in result_planets)}")
 
 
 def read_planets(planet_file):
+    # We start with a dict so we don't end up with duplicate planets in the list to return
     planets = {}
     with open(planet_file, "r") as f:
         reader = DictReader(f, delimiter="\t")
@@ -190,7 +189,8 @@ def read_planets(planet_file):
                 output=float(line["Output"]),
             )
             planets[planet_name].append(resource)
-    return planets
+    # We return a list of the planets
+    return list(planets.values())
 
 
 if __name__ == "__main__":
@@ -201,22 +201,24 @@ if __name__ == "__main__":
     wanted_resources = {
         "Condensed Alloy",
         "Crystal Compound",
-        "Dark Compound",
-        "Gleaming Alloy",
-        "Heavy Metals",
-        "Lucent Compound",
-        "Motley Compound",
+        # "Dark Compound",
+        # "Gleaming Alloy",
+        # "Heavy Metals",
+        # "Lucent Compound",
+        # "Motley Compound",
         "Noble Metals",
-        "Opulent Compound",
-        "Precious Alloy",
-        "Reactive Metals",
-        "Sheen Compound",
-        "Toxic Metals",
+        # "Opulent Compound",
+        # "Precious Alloy",
+        # "Reactive Metals",
+        # "Sheen Compound",
+        # "Toxic Metals",
     }
     planets = read_planets(r"C:\Users\sqfky\Desktop\ee_planets.txt")
     optimizer = Optimizer(
         input_planets=planets, wanted_resources=wanted_resources, wanted_planets=8
     )
-    optimizer.optimize_planets()
+    # DEBUG
+    print(optimizer.evaluate_yield(selections=[0, 1, 2, 3, 4, 5, 7, 7, 8]))
+    # optimizer.optimize_planets()
     end = datetime.now()
     print(f"Optimization finished at {end}, time taken {end-start}.")
