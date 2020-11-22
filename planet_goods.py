@@ -115,6 +115,7 @@ class Optimizer:
 
     def check_validity(self, planet):
         # Is the planet setup right, i.e. are harvesters only assigned to wanted resources
+        # ToDo: Do we need this check here? Shouldn't we not make non-valid permutations in the first place?
         return set(resource.name for resource in planet.resources if resource.harvesters > 0).issubset(self.wanted_resources)
 
     def evaluate_yield(self, selections):
@@ -176,6 +177,20 @@ class Optimizer:
                 else:
                     resource.harvesters = 1
 
+    def get_planet_permutations(self, selected_planets):
+        """
+        ToDo: Finds all the valid the planet permutations for each of the selected planets.
+
+        Valid permutations contain harvesters only assigned to the resources that are in the want list.
+        Only the most valuable resource can have more than one harvester assigned to it. 0-N other resources can have
+        harvesters assigned to them.
+        """
+        self.planet_permutations = []
+        for planet in selected_planets:
+            valid_permutations = []
+            # ToDo: valid_permutations = [planet for planet in planet.permutations if planet.is_valid(wanted_resources=self.wanted_resources)]
+            self.planet_permutations.append(valid_permutations)
+
     def optimize_planets(self):
         res = differential_evolution(
             func=self.evaluate_yield,
@@ -196,18 +211,13 @@ class Optimizer:
             print(planet)
         print(f"Total value: {sum(planet.total_value for planet in result_planets)}")
 
-    def get_planet_permutations(self, selected_planets):
-        """
-        ToDo: Finds all the valid the planet permutations for each of the selected planets.
-
-        Valid permutations contain harvesters only assigned to the resources that are in the want list.
-        Only the most valuable resource can have more than one harvester assigned to it. 0-N other resources can have
-        harvesters assigned to them.
-        """
-        self.planet_permutations = []
-        for planet in selected_planets:
-            # ToDo: valid_permutations = [planet for planet in planet.permutations if planet.is_valid(wanted_resources=self.wanted_resources)]
-            self.planet_permutations.append(valid_permutations)
+    def sanitize_planets(self):
+        """Removes the unneeded data from the pool"""
+        # Removing the useless resources from each planet
+        for planet in self.input_planets:
+            planet.resources = [resource for resource in planet.resources if resource.name in self.wanted_resources]
+        # Removing planets without resources from the pool
+        self.input_planets = [planet for planet in self.input_planets if planet.resources]
 
 
 def read_planets(planet_file):
@@ -253,6 +263,7 @@ if __name__ == "__main__":
     optimizer = Optimizer(
         input_planets=planets, wanted_resources=wanted_resources, wanted_planets=8
     )
+    optimizer.sanitize_planets()
     # DEBUG
     print(optimizer.evaluate_yield(selections=[0, 1, 2, 3, 4, 5, 7, 7, 8]))
     # optimizer.optimize_planets()
