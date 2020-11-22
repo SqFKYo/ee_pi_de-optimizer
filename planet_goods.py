@@ -4,6 +4,7 @@ from collections import Counter
 import copy
 from csv import DictReader
 from dataclasses import dataclass, field
+from itertools import product
 from operator import attrgetter
 
 import numpy as np
@@ -96,6 +97,7 @@ class Optimizer:
         self.characters = characters
         self.harvesters = harvesters
         self.input_planets = input_planets
+        self.planet_permutations = None
         self.wanted_planets = wanted_planets
         self.wanted_resources = wanted_resources
 
@@ -111,22 +113,26 @@ class Optimizer:
         else:
             return False
 
+    def check_validity(self, planet):
+        # Is the planet setup right, i.e. are harvesters only assigned to wanted resources
+        return set(resource.name for resource in planet.resources if resource.harvesters > 0).issubset(self.wanted_resources)
+
     def evaluate_yield(self, selections):
         # Round to evens then turn into int indexes
         selections = np.round(np.array(selections)).astype(int)
-        select_planets = [self.input_planets[selection] for selection in selections]
+        selected_planets = [self.input_planets[selection] for selection in selections]
 
         # If we have too many selections of the same planet, we return 0
-        planet_distribution = Counter(planet.name for planet in select_planets)
+        planet_distribution = Counter(planet.name for planet in selected_planets)
         if any(value > self.characters for value in planet_distribution.values()):
             return 0
 
         # If we cannot get all the resources we need as a combination of planet resources, we return 0
-        if not self.can_fullfill_wants(select_planets):
+        if not self.can_fullfill_wants(selected_planets):
             return 0
 
         # Find the combination of the most valuable permutation of the planets
-        optimal_planets = self.get_optimal_distribution(select_planets)
+        optimal_planets = self.get_optimal_distribution(selected_planets)
 
         total_value = sum(planet.total_value for planet in optimal_planets)
         print(f"All resources found! Value: {total_value}")
@@ -134,11 +140,28 @@ class Optimizer:
         # Returns the inversion of total value, since the optimization function searches for the minimum value
         return -total_value
 
-    def get_optimal_distribution(self, select_planets):
-        """Calculates the most valuable permutation of the select planets that fullfills the wants"""
+    def get_optimal_distribution(self, selected_planets):
+        """
+        Calculates the most valuable permutation of the select planets that fullfills the wants
+        Assumes that we don't need to worry about having too many duplicate planets, and just wants to optimize
+        the value based on the harvesters we have assuming we have all the wants covered.
+
+        To optimize the value, we put as many harvesters as possible to the most valuable resource and 1 harvester
+        to each of the resource we need to have based on the wants. In order to find the most profitable combination,
+        we need all valid permutations (=have harvesters assigned only to wanted resources, and >1 only to the most
+        valuable) for each planet, and then select the most valuable valid combination out of those valid permutations.
+
+        1) Create all valid permutations for each planet
+        2) Create all the combinations out of the valid planet permutations
+        3) Discard all the invalid combinations of permutations that do not satisfy the wants
+        4) Find the most valuable valid combination
+        """
+        self.get_planet_permutations(selected_planets)
+        combinations = product(self.planet_permutations)
+        valid_combinations = [combination for combination in combinations if self.can_fullfill_wants(combination)]
         # ToDo copypaste code
         # DEBUG
-        return select_planets
+        return selected_planets
         for _, i in zip(planet.resources, range(self.harvesters)):
             new_permute = copy.deepcopy(planet)
             new_permute.resources = sorted(
@@ -172,6 +195,19 @@ class Optimizer:
         for planet in result_planets:
             print(planet)
         print(f"Total value: {sum(planet.total_value for planet in result_planets)}")
+
+    def get_planet_permutations(self, selected_planets):
+        """
+        ToDo: Finds all the valid the planet permutations for each of the selected planets.
+
+        Valid permutations contain harvesters only assigned to the resources that are in the want list.
+        Only the most valuable resource can have more than one harvester assigned to it. 0-N other resources can have
+        harvesters assigned to them.
+        """
+        self.planet_permutations = []
+        for planet in selected_planets:
+            # ToDo: valid_permutations = [planet for planet in planet.permutations if planet.is_valid(wanted_resources=self.wanted_resources)]
+            self.planet_permutations.append(valid_permutations)
 
 
 def read_planets(planet_file):
