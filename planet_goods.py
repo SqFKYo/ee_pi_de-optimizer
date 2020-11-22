@@ -4,7 +4,7 @@ from collections import Counter
 import copy
 from csv import DictReader
 from dataclasses import dataclass, field
-from itertools import product
+from itertools import permutations, product
 from operator import attrgetter
 
 import numpy as np
@@ -97,7 +97,7 @@ class Optimizer:
         self.characters = characters
         self.harvesters = harvesters
         self.input_planets = input_planets
-        self.planet_permutations = None
+        self.permutations = None
         self.wanted_planets = wanted_planets
         self.wanted_resources = wanted_resources
 
@@ -112,11 +112,6 @@ class Optimizer:
             return True
         else:
             return False
-
-    def check_validity(self, planet):
-        # Is the planet setup right, i.e. are harvesters only assigned to wanted resources
-        # ToDo: Do we need this check here? Shouldn't we not make non-valid permutations in the first place?
-        return set(resource.name for resource in planet.resources if resource.harvesters > 0).issubset(self.wanted_resources)
 
     def evaluate_yield(self, selections):
         # Round to evens then turn into int indexes
@@ -158,11 +153,43 @@ class Optimizer:
         4) Find the most valuable valid combination
         """
         self.get_planet_permutations(selected_planets)
-        combinations = product(self.planet_permutations)
+        combinations = product(self.permutations)
         valid_combinations = [combination for combination in combinations if self.can_fullfill_wants(combination)]
-        # ToDo copypaste code
-        # DEBUG
-        return selected_planets
+        return max(sum(combination) for combination in valid_combinations)
+
+    def get_planet_permutations(self, selected_planets):
+        """
+        ToDo: Finds all the valid the planet permutations for each of the selected planets.
+
+        Valid permutations contain harvesters only assigned to the resources that are in the want list.
+        Only the most valuable resource can have more than one harvester assigned to it. 0-N other resources can have
+        harvesters assigned to them.
+        The number of permutations per planet is 2^(N-1) where N is the number of resources
+
+        Note: Currently assumes that number of harvesters is higher than number of different resources present.
+        """
+        self.permutations = []
+        for planet in selected_planets:
+            planet_permutations = []
+            for i, _ in enumerate(planet.resources):
+                main_harvesters = self.harvesters - i
+                other_harvesters = i * '1' + (self.harvesters - i) * '0'
+                sub_selections = set(permutations(other_harvesters))
+
+                for harv_selections in sub_selections:
+                    new_permute = copy.deepcopy(planet)
+
+                    for j, resource in enumerate(new_permute.resources):
+                        if j == 0:
+                            resource.harvesters = main_harvesters
+                        else:
+                            resource.harvesters = int(harv_selections[j])*1
+                    planet_permutations.append[new_permute]
+
+            self.permutations.append(planet_permutations)
+
+        """
+        # ToDo: Old code for inspiration
         for _, i in zip(planet.resources, range(self.harvesters)):
             new_permute = copy.deepcopy(planet)
             new_permute.resources = sorted(
@@ -176,22 +203,10 @@ class Optimizer:
                     continue
                 else:
                     resource.harvesters = 1
-
-    def get_planet_permutations(self, selected_planets):
         """
-        ToDo: Finds all the valid the planet permutations for each of the selected planets.
-
-        Valid permutations contain harvesters only assigned to the resources that are in the want list.
-        Only the most valuable resource can have more than one harvester assigned to it. 0-N other resources can have
-        harvesters assigned to them.
-        """
-        self.planet_permutations = []
-        for planet in selected_planets:
-            valid_permutations = []
-            # ToDo: valid_permutations = [planet for planet in planet.permutations if planet.is_valid(wanted_resources=self.wanted_resources)]
-            self.planet_permutations.append(valid_permutations)
 
     def optimize_planets(self):
+        self.sanitize_planets()
         res = differential_evolution(
             func=self.evaluate_yield,
             bounds=[
@@ -263,8 +278,8 @@ if __name__ == "__main__":
     optimizer = Optimizer(
         input_planets=planets, wanted_resources=wanted_resources, wanted_planets=8
     )
-    optimizer.sanitize_planets()
     # DEBUG
+    optimizer.sanitize_planets()
     print(optimizer.evaluate_yield(selections=[0, 1, 2, 3, 4, 5, 7, 7, 8]))
     # optimizer.optimize_planets()
     end = datetime.now()
