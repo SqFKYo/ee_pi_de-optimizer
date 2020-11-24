@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from collections import Counter
+from collections import Counter, defaultdict
 import copy
 from csv import DictReader
 from dataclasses import dataclass, field
@@ -247,6 +247,8 @@ class Optimizer:
     def sanitize_planets(self):
         """Removes the unneeded data from the pool"""
         # Removing the useless resources from each planet
+        # DEBUG
+        print(f'Planets at the beginning: {len(self.input_planets)}')
         for planet in self.input_planets:
             planet.resources = [
                 resource
@@ -257,6 +259,22 @@ class Optimizer:
         self.input_planets = [
             planet for planet in self.input_planets if planet.resources
         ]
+        # DEBUG
+        print(f'Planets after removing ones without any of the needed resources: {len(self.input_planets)}')
+        # ToDo: Remove planets with a single resource that aren't the most efficient
+        multiple = []
+        single_planets = defaultdict(list)
+        for planet in self.input_planets:
+            if len(planet.resources) > 1:
+                multiple.append(planet)
+            else:
+                single_planets[planet.resources[0].name].append(planet)
+        self.input_planets = multiple
+        for planets in single_planets.values():
+            self.input_planets.append(sorted(planets, key=lambda x: x.resources[0].output)[0])
+        # DEBUG
+        print(f'Planets after removing the useless single resource planets: {len(self.input_planets)}')
+
 
     def theoretically_ok(self, select_planets):
         """Determines whether the select planets contain all the wanted resources."""
@@ -311,6 +329,8 @@ if __name__ == "__main__":
     optimizer = Optimizer(
         input_planets=planets, wanted_resources=wanted_resources, wanted_planets=8
     )
-    optimizer.optimize_planets()
+    # DEBUG
+    optimizer.sanitize_planets()
+    # optimizer.optimize_planets()
     end = datetime.now()
     print(f"Optimization finished at {end}, time taken {end-start}.")
