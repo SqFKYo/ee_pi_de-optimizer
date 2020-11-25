@@ -246,6 +246,7 @@ class Optimizer:
 
     def sanitize_planets(self):
         """Removes the unneeded data from the pool"""
+
         # Removing the useless resources from each planet
         # DEBUG
         print(f'Planets at the beginning: {len(self.input_planets)}')
@@ -255,25 +256,28 @@ class Optimizer:
                 for resource in planet.resources
                 if resource.name in self.wanted_resources
             ]
+
         # Removing planets without resources from the pool
         self.input_planets = [
             planet for planet in self.input_planets if planet.resources
         ]
         # DEBUG
         print(f'Planets after removing ones without any of the needed resources: {len(self.input_planets)}')
-        # ToDo: Remove planets with a single resource that aren't the most efficient
-        multiple = []
-        single_planets = defaultdict(list)
+
+        # If the resources form identical sets, leave only the ones that have the highest value resource
+        resource_groups = defaultdict(list)
         for planet in self.input_planets:
-            if len(planet.resources) > 1:
-                multiple.append(planet)
+            resources = frozenset([resource.name for resource in planet.resources])
+            resource_groups[resources].append(planet)
+        self.input_planets = []
+        for planet_group in resource_groups.values():
+            if len(planet_group) == 1:
+                self.input_planets.append(planet_group[0])
+                continue
             else:
-                single_planets[planet.resources[0].name].append(planet)
-        self.input_planets = multiple
-        for planets in single_planets.values():
-            self.input_planets.append(sorted(planets, key=lambda x: x.resources[0].output)[0])
+                self.input_planets.append(sorted(planet_group, key=attrgetter('max_value'))[0])
         # DEBUG
-        print(f'Planets after removing the useless single resource planets: {len(self.input_planets)}')
+        print(f'Planets after removing the ones containing less useful similar groups: {len(self.input_planets)}')
 
 
     def theoretically_ok(self, select_planets):
@@ -330,7 +334,7 @@ if __name__ == "__main__":
         input_planets=planets, wanted_resources=wanted_resources, wanted_planets=8
     )
     # DEBUG
-    optimizer.sanitize_planets()
-    # optimizer.optimize_planets()
+    # optimizer.sanitize_planets()
+    optimizer.optimize_planets()
     end = datetime.now()
     print(f"Optimization finished at {end}, time taken {end-start}.")
