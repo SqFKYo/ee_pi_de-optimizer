@@ -4,6 +4,7 @@ from collections import Counter, defaultdict
 import copy
 from csv import DictReader
 from dataclasses import dataclass, field
+from datetime import datetime
 from itertools import combinations, permutations, product
 from operator import attrgetter
 
@@ -299,11 +300,32 @@ class Optimizer:
                 print(planet)
             print(f"Total value: {best_value}")
         elif brute:
-            # ToDo implement brute force algorithm
+            best_value = 0
+            best_combination = None
             count = 0
-            for _ in combinations(self.input_planets, 8):
+            subcounter = 0
+            for selected_planets in combinations(self.input_planets, self.harvesters):
                 count += 1
-            print(count)
+                subcounter += 1
+                if subcounter == 10000:
+                    print(f'We have now calculated through {count} iterations at {datetime.now()}!')
+                    subcounter = 0
+                if not self.theoretically_ok(selected_planets):
+                    continue
+                else:
+                    # Find the combination of the most valuable permutation of the planets
+                    optimal_planets = self.get_optimal_distribution(selected_planets)
+                    total_value = sum(planet.total_value for planet in optimal_planets)
+                    if total_value > best_value:
+                        print(f'Found new best combo totaling {total_value}: {optimal_planets}')
+                        best_value = total_value
+                        best_combination = optimal_planets
+            print(f"\nCalculated through {count} different combinations of planets.")
+            print(f"\nSelected planets are:")
+            for planet in best_combination:
+                print(planet)
+            print(f"Total value: {best_value}")
+
 
     def print_valuable(self):
         done_resources = []
@@ -407,24 +429,22 @@ def read_planets(planet_file):
 
 
 if __name__ == "__main__":
-    from datetime import datetime
-
     start = datetime.now()
     print(f"Starting optimization at {start}")
     wanted_resources = {
-        # "Condensed Alloy",
+        "Condensed Alloy",
         "Crystal Compound",
-        # "Dark Compound",
+        "Dark Compound",
         "Gleaming Alloy",
         "Heavy Metals",
-        # "Lucent Compound",
-        # "Motley Compound",
+        "Lucent Compound",
+        "Motley Compound",
         "Noble Metals",
-        # "Opulent Compound",
+        "Opulent Compound",
         "Precious Alloy",
         "Reactive Metals",
-        # "Sheen Compound",
-        # "Toxic Metals",
+        "Sheen Compound",
+        "Toxic Metals",
     }
     input_planets = read_planets(r"C:\Users\sqfky\Desktop\ee_planets.txt")
     optimizer = Optimizer(
