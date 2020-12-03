@@ -372,7 +372,7 @@ class Optimizer:
                 continue
             else:
                 self.input_planets.append(
-                    sorted(planet_group, key=attrgetter("max_value"))[0]
+                    sorted(planet_group, key=attrgetter("max_value"), reverse=True)[0]
                 )
         # DEBUG
         print(
@@ -453,8 +453,14 @@ if __name__ == "__main__":
         wanted_resources=wanted_resources,
     )
     # DEBUG
+    # for i, planet in enumerate(sorted(
+    #         optimizer.input_planets, key=attrgetter("max_value"), reverse=True)
+    # ):
+    #     print(planet)
+    #     if i == 10:
+    #         break
     # optimizer.print_valuable()
-    # optimizer.sanitize_planets()
-    optimizer.optimize_planets(brute=True)
+    optimizer.sanitize_planets()
+    # optimizer.optimize_planets(brute=True)
     end = datetime.now()
     print(f"Optimization finished at {end}, time taken {end-start}.")
