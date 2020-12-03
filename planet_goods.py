@@ -327,7 +327,7 @@ class Optimizer:
             print(f"Total value: {best_value}")
 
 
-    def print_valuable(self):
+    def print_valuable_pi(self):
         done_resources = []
         for planet in sorted(
             self.input_planets, key=attrgetter("max_value"), reverse=True
@@ -337,6 +337,14 @@ class Optimizer:
                     f"Most valuable is {planet.most_valuable} at {planet.max_value:.2f} isk!"
                 )
                 done_resources.append(planet.most_valuable)
+
+    def print_valuable_planets(self, amount):
+        for i, planet in enumerate(sorted(
+                optimizer.input_planets, key=attrgetter("max_value"), reverse=True)
+        ):
+            print(f'{planet.name}, {planet.most_valuable}, {planet.max_value:.2f}')
+            if i == amount:
+                break
 
     def sanitize_planets(self):
         """Removes the unneeded data from the pool"""
@@ -449,18 +457,12 @@ if __name__ == "__main__":
     input_planets = read_planets(r"C:\Users\sqfky\Desktop\ee_planets.txt")
     optimizer = Optimizer(
         input_planets=input_planets,
-        wanted_planets=4,
+        wanted_planets=6,
         wanted_resources=wanted_resources,
     )
-    # DEBUG
-    # for i, planet in enumerate(sorted(
-    #         optimizer.input_planets, key=attrgetter("max_value"), reverse=True)
-    # ):
-    #     print(planet)
-    #     if i == 10:
-    #         break
-    # optimizer.print_valuable()
+    # optimizer.print_valuable_pi()
+    optimizer.print_valuable_planets(amount=10)
     # optimizer.sanitize_planets()
-    optimizer.optimize_planets(brute=True)
+    # optimizer.optimize_planets(brute=True)
     end = datetime.now()
     print(f"Optimization finished at {end}, time taken {end-start}.")
