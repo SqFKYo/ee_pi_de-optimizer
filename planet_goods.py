@@ -304,26 +304,26 @@ class Optimizer:
             best_combination = None
             count = 0
             subcounter = 0
-            for selected_planets in combinations(self.input_planets, self.harvesters):
+            for selected_planets in combinations(self.input_planets, self.wanted_planets):
                 count += 1
                 subcounter += 1
                 if subcounter == 10000:
                     print(f'We have now calculated through {count} iterations at {datetime.now()}!')
                     subcounter = 0
-                if not self.theoretically_ok(selected_planets):
-                    continue
-                else:
-                    # Find the combination of the most valuable permutation of the planets
-                    optimal_planets = self.get_optimal_distribution(selected_planets)
-                    total_value = sum(planet.total_value for planet in optimal_planets)
-                    if total_value > best_value:
-                        print(f'Found new best combo totaling {total_value}: {optimal_planets}')
-                        best_value = total_value
-                        best_combination = optimal_planets
+                # if not self.theoretically_ok(selected_planets):
+                #     continue
+                # else:
+                #     # Find the combination of the most valuable permutation of the planets
+                #     optimal_planets = self.get_optimal_distribution(selected_planets)
+                #     total_value = sum(planet.total_value for planet in optimal_planets)
+                #     if total_value > best_value:
+                #         print(f'Found new best combo totaling {total_value}: {optimal_planets}')
+                #         best_value = total_value
+                #         best_combination = optimal_planets
             print(f"\nCalculated through {count} different combinations of planets.")
             print(f"\nSelected planets are:")
-            for planet in best_combination:
-                print(planet)
+            # for planet in best_combination:
+            #     print(planet)
             print(f"Total value: {best_value}")
 
 
@@ -449,7 +449,7 @@ if __name__ == "__main__":
     input_planets = read_planets(r"C:\Users\sqfky\Desktop\ee_planets.txt")
     optimizer = Optimizer(
         input_planets=input_planets,
-        wanted_planets=8,
+        wanted_planets=9,
         wanted_resources=wanted_resources,
     )
     # DEBUG
@@ -460,7 +460,7 @@ if __name__ == "__main__":
     #     if i == 10:
     #         break
     # optimizer.print_valuable()
-    optimizer.sanitize_planets()
-    # optimizer.optimize_planets(brute=True)
+    # optimizer.sanitize_planets()
+    optimizer.optimize_planets(brute=True)
     end = datetime.now()
     print(f"Optimization finished at {end}, time taken {end-start}.")
