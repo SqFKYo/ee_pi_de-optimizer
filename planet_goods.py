@@ -9,7 +9,6 @@ from itertools import combinations, permutations, product
 from operator import attrgetter
 
 import numpy as np
-from scipy.optimize import differential_evolution
 
 PI_RAW_VALUES = """
 Lustering Alloy	134 
@@ -271,6 +270,8 @@ class Optimizer:
         """
         Try to see how many planets can satisfy the needs.
         If e.g. 4 can satisfy the needs, and 8 total, take first 4 most valuable and use 4 others to satisfy needs
+
+        # ToDo: Optimize for more variety. Farming mostly for one / two resources is a huge market risk
         """
 
         given_planets = None
