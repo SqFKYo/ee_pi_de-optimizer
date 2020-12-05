@@ -273,7 +273,7 @@ class Optimizer:
         If e.g. 4 can satisfy the needs, and 8 total, take first 4 most valuable and use 4 others to satisfy needs
         """
 
-        best_combination = None
+        given_planets = None
         self.remove_useless()
         original_inputs = copy.deepcopy(self.input_planets)
         original_wanted = copy.deepcopy(self.wanted_resources)
@@ -281,44 +281,43 @@ class Optimizer:
             sorted(original_inputs, key=attrgetter("max_value"), reverse=True)
         )
 
+        optimum_planets = None
         for i in range(self.wanted_planets, 0, -1):
-            best_combination = sorted_inputs[:i]
-            for p in best_combination:
-                p.main_harvesters = self.harvesters
+            given_planets = sorted_inputs[:i]
             self.input_planets = sorted_inputs[i:]
             self.remove_less_useful()
-            have_resources = {p.most_valuable for p in best_combination}
-            self.wanted_resources = set(original_wanted).difference(have_resources)
             optimum_planets = self.optimize_subset(
+                given_planets=given_planets,
                 wanted_planets=self.wanted_planets - i,
             )
             if optimum_planets:
-                best_combination.extend(optimum_planets)
                 break
 
         print(f"\nSelected planets are:")
-        for planet in best_combination:
+        for planet in optimum_planets:
             print(planet)
-        best_value = sum(planet.total_value for planet in best_combination)
+        best_value = sum(planet.total_value for planet in optimum_planets)
         print(f"Total value: {best_value}")
 
-    def optimize_subset(self, wanted_planets):
+    def optimize_subset(self, given_planets, wanted_planets):
         """
-        Returns the most valuable subset of planets that match the wanted resources
-        If wanted planets is 0, return None
-        If wanted resources is empty, return wanted planets amount of next planets
-        If no set of planets to satisfy the wanted resources, return None
+        Returns the most valuable combination of planets given that some planets are preselected
+        If wanted planets is 0, return given planets
+        If no set of planets is found to satisfy the wanted resources, return None
         """
         if wanted_planets < 1:
-            return None
-        elif not self.wanted_resources:
-            return self.input_planets[:wanted_planets]
+            if self.theoretically_ok(select_planets=given_planets):
+                return given_planets
+            else:
+                return None
 
         best_value = 0
         best_combination = None
         count = 0
         subcounter = 0
         for selected_planets in combinations(self.input_planets, wanted_planets):
+            selected_planets = list(selected_planets)
+            selected_planets.extend(given_planets)
             count += 1
             subcounter += 1
             if subcounter == 10000:
@@ -457,8 +456,8 @@ if __name__ == "__main__":
     wanted_resources = {
         "Condensed Alloy",
         "Crystal Compound",
-        "Dark Compound",
         "Gleaming Alloy",
+        "Glossy Compound",
         "Heavy Metals",
         "Lucent Compound",
         "Motley Compound",
@@ -477,7 +476,6 @@ if __name__ == "__main__":
     )
     # optimizer.print_valuable_pi()
     # optimizer.print_valuable_planets(amount=10)
-    # optimizer.sanitize_planets()
     optimizer.optimize_planets()
     end = datetime.now()
     print(f"Optimization finished at {end}, time taken {end-start}.")
