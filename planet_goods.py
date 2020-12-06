@@ -11,49 +11,57 @@ from operator import attrgetter
 import numpy as np
 
 PI_RAW_VALUES = """
-Lustering Alloy	134 
-Sheen Compound	144 
-Gleaming Alloy	205 
-Condensed Alloy	128 
-Precious Alloy	333 
-Motley Compound	92 
-Fiber Composite	56 
-Lucent Compound	153 
-Opulent Compound	135 
-Glossy Compound	121 
-Crystal Compound	279 
-Dark Compound	83 
-Reactive Gas	107 
-Noble Gas	53 
-Base Metals	98 
-Heavy Metals	255 
-Noble Metals	192 
-Reactive Metals	839 
-Toxic Metals	806 
-Industrial Fibers	68 
-Supertensile Plastics	190 
-Polyaramids	113 
-Coolant	114 
-Condensates	116 
-Construction Blocks	171 
+Lustering Alloy	99 
+Sheen Compound	159 
+Gleaming Alloy	198 
+Condensed Alloy	157 
+Precious Alloy	340 
+Motley Compound	134 
+Fiber Composite	91 
+Lucent Compound	148 
+Opulent Compound	147 
+Glossy Compound	118 
+Crystal Compound	208 
+Dark Compound	98 
+Reactive Gas	81 
+Noble Gas	47 
+Base Metals	123 
+Heavy Metals	268 
+Noble Metals	160 
+Reactive Metals	772 
+Toxic Metals	761 
+Industrial Fibers	70 
+Supertensile Plastics	179 
+Polyaramids	83 
+Coolant	64 
+Condensates	121 
+Construction Blocks	164 
 Nanites	89 
-Silicate Glass	180 
-Smartfab Units	83 
+Silicate Glass	173 
+Smartfab Units	101 
 Heavy Water	3 
-Suspended Plasma	9 
-Liquid Ozone	33 
-Ionic Solutions	191 
-Oxygen Isotopes	417 
-Plasmoids	1,880 
+Suspended Plasma	10 
+Liquid Ozone	34 
+Ionic Solutions	174 
+Oxygen Isotopes	397 
+Plasmoids	494 
 """
 
-pi_values = {}
-for raw_line in PI_RAW_VALUES.split("\n"):
-    # Skip empty lines
-    if not raw_line:
-        continue
-    name, value = raw_line.split("\t")
-    pi_values[name] = float(value.replace(",", ""))
+
+def parse_pi_values(round_to=None):
+    pi_values = {}
+    for raw_line in PI_RAW_VALUES.split("\n"):
+        # Skip empty lines
+        if not raw_line:
+            continue
+        name, value = raw_line.split("\t")
+        unrounded = float(value.replace(",", ""))
+        if round_to is None:
+            pi_values[name] = unrounded
+        else:
+            rounded = round_to * round(unrounded/round_to)
+            pi_values[name] = rounded
+    return pi_values
 
 
 @dataclass
@@ -165,6 +173,7 @@ class Optimizer:
 
     def can_fulfill_wants(self, combination):
         """Checks whether the harvester setup on the different planets fulfills the wants"""
+        # ToDo: Need to add check to respect the boundaries based on the min/max harvesters that can be tied to one resource
         available_resources = set()
         for planet in combination:
             for resource in planet.resources:
@@ -187,8 +196,6 @@ class Optimizer:
         2) Create all the combinations out of the valid planet permutations
         3) Discard all the invalid combinations of permutations that do not satisfy the wants
         4) Find the most valuable valid combination
-
-        # ToDo: Need to add check to respect the boundaries based on the min/max harvesters that can be tied to one resource
         """
         self.get_planet_permutations(selected_planets)
         combos = product(*self.permutations)
@@ -331,15 +338,21 @@ class Optimizer:
                 )
                 done_resources.append(planet.most_valuable)
 
-    def print_valuable_planets(self, amount):
-        for i, planet in enumerate(
-            sorted(self.input_planets, key=attrgetter("max_value"), reverse=True)
-        ):
-            print(f"{planet.name}, {planet.most_valuable}, {planet.max_value:.2f}")
+    def print_valuable_planets(self, amount, unique_resources=False):
+        i = 0
+        done_resources = set()
+        for planet in sorted(self.input_planets, key=attrgetter("max_value"), reverse=True):
+            if unique_resources and planet.most_valuable in done_resources:
+                continue
+            else:
+                print(f"{planet.name}, {planet.most_valuable}, {planet.max_value:.2f}")
+                done_resources.add(planet.most_valuable)
+                i += 1
             if i == amount:
                 break
 
     def remove_less_useful(self):
+        # ToDo: Needs to take into account that less valuable planets might be needed if a single resource is dominating
         # If the resources form identical sets, leave only the ones that have the highest value resource
         resource_groups = defaultdict(list)
         for planet in self.input_planets:
@@ -428,23 +441,25 @@ def read_planets(planet_file):
 
 if __name__ == "__main__":
     start = datetime.now()
+    pi_values = parse_pi_values()
     print(f"Starting optimization at {start}")
     wanted_resources = {
-        "Base Metals",
-        # "Condensed Alloy",
-        # "Crystal Compound",
+        # "Base Metals",
+        "Condensed Alloy",
+        "Crystal Compound",
+        # "Fiber Composite",
         "Gleaming Alloy",
         "Glossy Compound",
-        # "Heavy Metals",
+        "Heavy Metals",
         # "Lucent Compound",
-        # "Motley Compound",
-        "Noble Gas",
-        # "Noble Metals",
-        # "Opulent Compound",
+        "Lustering Alloy",
+        "Motley Compound",
+        "Noble Metals",
+        "Opulent Compound",
         "Precious Alloy",
         "Reactive Metals",
         "Sheen Compound",
-        # "Toxic Metals",
+        "Toxic Metals",
     }
     input_planets = read_planets(r"C:\Users\sqfky\Desktop\ee_planets.txt")
     optimizer = Optimizer(
@@ -453,7 +468,7 @@ if __name__ == "__main__":
         wanted_resources=wanted_resources,
     )
     # optimizer.print_valuable_pi()
-    # optimizer.print_valuable_planets(amount=10)
+    # optimizer.print_valuable_planets(amount=50, unique_resources=True)
     optimizer.optimize_planets()
     end = datetime.now()
     print(f"Optimization finished at {end}, time taken {end-start}.")
