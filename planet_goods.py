@@ -465,7 +465,7 @@ class PlanetRanker:
             for res in sorted(sub_resources, reverse=True)[:number]:
                 print(f"{res.planet}, {res.output}, {res.output*pi_values[name]:.2f}")
 
-    def print_total_best(self, number=10, debug=False):
+    def print_total_best(self, number=10, debug=False, multi_only=False):
         """
         # Prints the best planets in the given subspace
         Each planet's value is PI value divided by
@@ -477,26 +477,42 @@ class PlanetRanker:
             for rank, planet_resource in enumerate(
                 sorted(sub_resources, reverse=True), start=1
             ):
+                if rank == 5:
+                    break
                 ranked_planets[planet_resource.planet].append(
                     RankedResource(
                         name=res_name, output=planet_resource.output, rank=rank
                     )
                 )
 
-        for ranked_planet in sorted(
-            ranked_planets,
-            key=lambda x: sum(y.value for y in ranked_planets[x]),
-            reverse=True,
-        )[:number]:
-            print("\nPlanet, total weighted value")
+        if multi_only:
+            ranked_planets = {
+                planet: ranked_resources
+                for planet, ranked_resources in ranked_planets.items()
+                if len(ranked_resources) > 1
+            }
+
+        for pos, ranked_planet in enumerate(
+            sorted(
+                ranked_planets,
+                key=lambda x: sum(y.value for y in ranked_planets[x]),
+                reverse=True,
+            ),
+            start=1,
+        ):
+            print("\nRank, planet, total weighted value")
             if debug:
                 print(f"DEBUG: {ranked_planets[ranked_planet]}")
             print(
-                f"{ranked_planet}, {sum(x.value for x in ranked_planets[ranked_planet]):.2f}"
+                f"{pos}, {ranked_planet}, {sum(x.value for x in ranked_planets[ranked_planet]):.2f}"
             )
             print(f"Resource, weighted value")
-            for res in sorted(ranked_planets[ranked_planet], key=attrgetter('value'), reverse=True):
+            for res in sorted(
+                ranked_planets[ranked_planet], key=attrgetter("value"), reverse=True
+            ):
                 print(f"{res.name}, {res.value:.2f}")
+            if pos == number:
+                break
 
 
 def read_planets(planet_file):
@@ -553,10 +569,11 @@ if __name__ == "__main__":
     }
 
     planet_resources = read_resources(r"C:\Users\sqfky\Desktop\ee_planets.txt")
+    # planet_resources = read_resources(r"C:\Users\sqfky\Desktop\ee_planets_all.txt")
     # planet_resources = read_resources(r"C:\Users\sqfky\Desktop\ee_planets_nearby.txt")
     planet_ranker = PlanetRanker(planet_resources, wanted_resources=wanted_resources)
     # planet_ranker.print_best_of_each(number=5)
-    planet_ranker.print_total_best(number=10, debug=True)
+    planet_ranker.print_total_best(number=100, debug=True, multi_only=False)
     # input_planets = read_planets(r"C:\Users\sqfky\Desktop\ee_planets.txt")
     # input_planets = read_planets(r"C:\Users\sqfky\Desktop\ee_planets_nearby.txt")
     # optimizer = Optimizer(
