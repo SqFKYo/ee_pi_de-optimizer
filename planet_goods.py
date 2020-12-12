@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from collections import Counter, defaultdict
+from collections import defaultdict
 import copy
 from csv import DictReader
 from dataclasses import dataclass, field
@@ -59,7 +59,7 @@ def parse_pi_values(round_to=None):
         if round_to is None:
             pi_values[name] = unrounded
         else:
-            rounded = round_to * round(unrounded/round_to)
+            rounded = round_to * round(unrounded / round_to)
             pi_values[name] = rounded
     return pi_values
 
@@ -125,6 +125,15 @@ class Planet:
 
     def append(self, resource):
         self.resources.append(resource)
+
+
+@dataclass
+class PlanetResource:
+    planet: str
+    output: float
+
+    def __lt__(self, other):
+        return self.output < other.output
 
 
 @dataclass
@@ -200,9 +209,7 @@ class Optimizer:
         self.get_planet_permutations(selected_planets)
         combos = product(*self.permutations)
         valid_combinations = [
-            combination
-            for combination in combos
-            if self.can_fulfill_wants(combination)
+            combination for combination in combos if self.can_fulfill_wants(combination)
         ]
         best_value = max(
             sum(planet.total_value for planet in combination)
@@ -341,7 +348,9 @@ class Optimizer:
     def print_valuable_planets(self, amount, unique_resources=False):
         i = 0
         done_resources = set()
-        for planet in sorted(self.input_planets, key=attrgetter("max_value"), reverse=True):
+        for planet in sorted(
+            self.input_planets, key=attrgetter("max_value"), reverse=True
+        ):
             if unique_resources and planet.most_valuable in done_resources:
                 continue
             else:
@@ -420,6 +429,44 @@ class Optimizer:
         return self.wanted_resources.issubset(select_resources)
 
 
+class PlanetRanker:
+    def __init__(self, planet_resources, wanted_resources=None):
+        self.planet_resources = planet_resources
+        self.wanted_resources = wanted_resources
+        self._filter_resources()
+
+
+    def _filter_resources(self):
+        """Filters out the resources we do not need. If planet resources is set to None, we don't filter."""
+        if self.wanted_resources is None:
+            return
+        self.planet_resources = {
+            resource: sub_resources
+            for resource, sub_resources in self.planet_resources.items()
+            if resource in self.wanted_resources
+        }
+
+    def print_best_of_each(self, number=10):
+        for name, sub_resources in sorted(self.planet_resources.items()):
+            if not sub_resources:
+                continue
+            print(f"\n{name}")
+            print(f"Planet, output, isk")
+            for res in sorted(sub_resources, reverse=True)[:number]:
+                print(f"{res.planet}, {res.output}, {res.output*pi_values[name]:.2f}")
+
+
+    def print_total_best(self, number=10):
+        """
+        # ToDo Prints the best planets in the given subspace
+        Each planet's value is PI value divided by
+        how good the planet is in the set. So the best Toxic Metal planet would get full multiplier, the 2nd
+        would get half, 3rd 1/3rd etc. Then sum all the subcomponents we're interested in.
+        """
+
+        pass
+
+
 def read_planets(planet_file):
     # We start with a dict so we don't end up with duplicate planets in the list to return
     planets = {}
@@ -437,6 +484,17 @@ def read_planets(planet_file):
             planets[planet_name].append(resource)
     # We return a list of the planets
     return list(planets.values())
+
+
+def read_resources(resource_file):
+    resources = defaultdict(list)
+    with open(resource_file, "r") as f:
+        reader = DictReader(f, delimiter="\t")
+        for line in reader:
+            resources[line["Resource"]].append(
+                PlanetResource(planet=line["Planet Name"], output=float(line["Output"]))
+            )
+    return resources
 
 
 if __name__ == "__main__":
@@ -461,14 +519,20 @@ if __name__ == "__main__":
         "Sheen Compound",
         "Toxic Metals",
     }
-    input_planets = read_planets(r"C:\Users\sqfky\Desktop\ee_planets.txt")
-    optimizer = Optimizer(
-        input_planets=input_planets,
-        wanted_planets=9,
-        wanted_resources=wanted_resources,
-    )
+
+    planet_resources = read_resources(r"C:\Users\sqfky\Desktop\ee_planets.txt")
+    planet_ranker = PlanetRanker(planet_resources, wanted_resources=wanted_resources)
+    planet_ranker.print_best_of_each(number=5)
+    planet_ranker.print_total_best(number=20)
+    # input_planets = read_planets(r"C:\Users\sqfky\Desktop\ee_planets.txt")
+    # input_planets = read_planets(r"C:\Users\sqfky\Desktop\ee_planets_nearby.txt")
+    # optimizer = Optimizer(
+    #     input_planets=input_planets,
+    #     wanted_planets=9,
+    #     wanted_resources=wanted_resources,
+    # )
     # optimizer.print_valuable_pi()
     # optimizer.print_valuable_planets(amount=50, unique_resources=True)
-    optimizer.optimize_planets()
+    # optimizer.optimize_planets()
     end = datetime.now()
     print(f"Optimization finished at {end}, time taken {end-start}.")
