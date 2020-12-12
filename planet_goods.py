@@ -11,40 +11,40 @@ from operator import attrgetter
 import numpy as np
 
 PI_RAW_VALUES = """
-Lustering Alloy	99 
-Sheen Compound	159 
-Gleaming Alloy	198 
-Condensed Alloy	157 
-Precious Alloy	340 
-Motley Compound	134 
-Fiber Composite	91 
-Lucent Compound	148 
-Opulent Compound	147 
-Glossy Compound	118 
-Crystal Compound	208 
-Dark Compound	98 
-Reactive Gas	81 
-Noble Gas	47 
-Base Metals	123 
-Heavy Metals	268 
-Noble Metals	160 
-Reactive Metals	772 
-Toxic Metals	761 
-Industrial Fibers	70 
-Supertensile Plastics	179 
-Polyaramids	83 
-Coolant	64 
-Condensates	121 
-Construction Blocks	164 
-Nanites	89 
-Silicate Glass	173 
-Smartfab Units	101 
-Heavy Water	3 
-Suspended Plasma	10 
-Liquid Ozone	34 
-Ionic Solutions	174 
-Oxygen Isotopes	397 
-Plasmoids	494 
+Lustering Alloy	115.2
+Sheen Compound	201.6
+Gleaming Alloy	252.9
+Condensed Alloy	150.4
+Precious Alloy	351
+Motley Compound	145.6
+Fiber Composite	72
+Lucent Compound	159.2
+Opulent Compound	152
+Glossy Compound	166.5
+Crystal Compound	200
+Dark Compound	119.2
+Reactive Gas	100
+Noble Gas	50
+Base Metals	136
+Heavy Metals	236
+Noble Metals	148.8
+Reactive Metals	693
+Toxic Metals	630.4
+Industrial Fibers	120
+Supertensile Plastics	350
+Polyaramids	200
+Coolant	100
+Condensates	700
+Construction Blocks	350
+Nanites	250
+Silicate Glass	445
+Smartfab Units	647.5
+Heavy Water	2
+Suspended Plasma	5
+Liquid Ozone	25
+Ionic Solutions	140
+Oxygen Isotopes	444
+Plasmoids	900
 """
 
 
@@ -134,6 +134,17 @@ class PlanetResource:
 
     def __lt__(self, other):
         return self.output < other.output
+
+
+@dataclass
+class RankedResource:
+    name: str
+    output: float
+    rank: int
+
+    @property
+    def value(self) -> float:
+        return pi_values[self.name] * self.output / self.rank
 
 
 @dataclass
@@ -435,7 +446,6 @@ class PlanetRanker:
         self.wanted_resources = wanted_resources
         self._filter_resources()
 
-
     def _filter_resources(self):
         """Filters out the resources we do not need. If planet resources is set to None, we don't filter."""
         if self.wanted_resources is None:
@@ -455,16 +465,38 @@ class PlanetRanker:
             for res in sorted(sub_resources, reverse=True)[:number]:
                 print(f"{res.planet}, {res.output}, {res.output*pi_values[name]:.2f}")
 
-
-    def print_total_best(self, number=10):
+    def print_total_best(self, number=10, debug=False):
         """
-        # ToDo Prints the best planets in the given subspace
+        # Prints the best planets in the given subspace
         Each planet's value is PI value divided by
         how good the planet is in the set. So the best Toxic Metal planet would get full multiplier, the 2nd
         would get half, 3rd 1/3rd etc. Then sum all the subcomponents we're interested in.
         """
+        ranked_planets = defaultdict(list)
+        for res_name, sub_resources in self.planet_resources.items():
+            for rank, planet_resource in enumerate(
+                sorted(sub_resources, reverse=True), start=1
+            ):
+                ranked_planets[planet_resource.planet].append(
+                    RankedResource(
+                        name=res_name, output=planet_resource.output, rank=rank
+                    )
+                )
 
-        pass
+        for ranked_planet in sorted(
+            ranked_planets,
+            key=lambda x: sum(y.value for y in ranked_planets[x]),
+            reverse=True,
+        )[:number]:
+            print("\nPlanet, total weighted value")
+            if debug:
+                print(f"DEBUG: {ranked_planets[ranked_planet]}")
+            print(
+                f"{ranked_planet}, {sum(x.value for x in ranked_planets[ranked_planet]):.2f}"
+            )
+            print(f"Resource, weighted value")
+            for res in sorted(ranked_planets[ranked_planet], key=attrgetter('value'), reverse=True):
+                print(f"{res.name}, {res.value:.2f}")
 
 
 def read_planets(planet_file):
@@ -502,14 +534,14 @@ if __name__ == "__main__":
     pi_values = parse_pi_values()
     print(f"Starting optimization at {start}")
     wanted_resources = {
-        # "Base Metals",
+        "Base Metals",
         "Condensed Alloy",
         "Crystal Compound",
-        # "Fiber Composite",
+        "Fiber Composite",
         "Gleaming Alloy",
         "Glossy Compound",
         "Heavy Metals",
-        # "Lucent Compound",
+        "Lucent Compound",
         "Lustering Alloy",
         "Motley Compound",
         "Noble Metals",
@@ -521,9 +553,10 @@ if __name__ == "__main__":
     }
 
     planet_resources = read_resources(r"C:\Users\sqfky\Desktop\ee_planets.txt")
+    # planet_resources = read_resources(r"C:\Users\sqfky\Desktop\ee_planets_nearby.txt")
     planet_ranker = PlanetRanker(planet_resources, wanted_resources=wanted_resources)
-    planet_ranker.print_best_of_each(number=5)
-    planet_ranker.print_total_best(number=20)
+    # planet_ranker.print_best_of_each(number=5)
+    planet_ranker.print_total_best(number=10, debug=True)
     # input_planets = read_planets(r"C:\Users\sqfky\Desktop\ee_planets.txt")
     # input_planets = read_planets(r"C:\Users\sqfky\Desktop\ee_planets_nearby.txt")
     # optimizer = Optimizer(
